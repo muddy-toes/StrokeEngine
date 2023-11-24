@@ -13,6 +13,7 @@
 
 #include <Arduino.h>
 #include <pattern.h>
+#include <streaming.h>
 
 // Debug Levels
 //#define DEBUG_TALKATIVE             // Show debug messages from the StrokeEngine on Serial
