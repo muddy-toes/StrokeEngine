@@ -1,3 +1,6 @@
+# Changes from Core Project
+This project is a fork from StrokeEngine 0.3 to add support for sending a stream of position commands to StrokeEngine. For use with the XToys OSSM firmware for real time position updates.
+
 # StrokeEngine
 A library to create a variety of stroking motions with a stepper or servo motor on an ESP32. A usage example can be found in my other related project: [FuckIO](https://github.com/theelims/FuckIO). It will work with all kinds of stepper / servo operated fucking and stroking machines. An other popular example is the Kinky Makers [OSSM-Project](https://github.com/KinkyMakers/OSSM-hardware)
 

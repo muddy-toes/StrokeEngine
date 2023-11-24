@@ -88,7 +88,11 @@ void StrokeEngine::setDepth(float depth, bool applyNow = false) {
         // Constrain depth between minStep and maxStep
         _depth = constrain(int(depth * _motor->stepsPerMillimeter), _minStep, _maxStep); 
 
-        patternTable[_patternIndex]->setDepth(_depth);
+        if (_state == PATTERN) {
+            patternTable[_patternIndex]->setDepth(_depth);
+        } else if (_state == STREAMING) {
+            livePosition->setDepth(_depth);
+        }
 
 #ifdef DEBUG_TALKATIVE
         Serial.println("setDepth: " + String(_depth));
@@ -126,7 +130,11 @@ void StrokeEngine::setStroke(float stroke, bool applyNow = false) {
         // Constrain stroke between minStep and maxStep
         _stroke = constrain(int(stroke * _motor->stepsPerMillimeter), _minStep, _maxStep); 
 
-        patternTable[_patternIndex]->setStroke(_stroke);
+        if (_state == PATTERN) {
+            patternTable[_patternIndex]->setStroke(_stroke);
+        } else if (_state == STREAMING) {
+            livePosition->setStroke(_stroke);
+        }
 
 #ifdef DEBUG_TALKATIVE
         Serial.println("setStroke: " + String(_stroke));
@@ -155,6 +163,22 @@ void StrokeEngine::setStroke(float stroke, bool applyNow = false) {
 float StrokeEngine::getStroke() {
     // Convert stroke from steps into mm
     return _stroke / _motor->stepsPerMillimeter;
+}
+
+void StrokeEngine::appendToStreaming(unsigned int position, unsigned int time, boolean replace) {
+    if (xSemaphoreTake(_patternMutex, portMAX_DELAY) == pdTRUE) {
+        if (replace) {
+            livePosition->clear();
+        }
+        livePosition->addPosition(position, time);
+
+#ifdef DEBUG_TALKATIVE
+        Serial.println("appendToStreaming: " + String(position) + " " + String(time));
+#endif
+
+        // give back mutex
+        xSemaphoreGive(_patternMutex);
+    }
 }
 
 void StrokeEngine::setSensation(float sensation, bool applyNow = false) {
@@ -248,7 +272,7 @@ int StrokeEngine::getPattern() {
 
 bool StrokeEngine::startPattern() {
     // Only valid if state is ready
-    if (_state == READY || _state == SETUPDEPTH) {
+    if (_state == READY || _state == SETUPDEPTH || _state == STREAMING) {
 
         // Stop current move, should one be pending (moveToMax or moveToMin)
         if (servo->isRunning()) {
@@ -313,9 +337,63 @@ bool StrokeEngine::startPattern() {
     }
 }
 
+bool StrokeEngine::startStreaming() {
+    // Only valid if state is ready
+    if (_state == READY || _state == SETUPDEPTH || _state == PATTERN) {
+
+        // Stop current move, should one be pending (moveToMax or moveToMin)
+        if (servo->isRunning()) {
+            // Stop servo motor as fast as legally allowed
+            servo->setAcceleration(_maxStepAcceleration);
+            servo->applySpeedAcceleration();
+            servo->stopMove();
+        }
+
+        // Set state to PATTERN
+        _state = STREAMING;
+
+        livePosition->setSpeedLimit(_maxStepPerSecond, _maxStepAcceleration, _motor->stepsPerMillimeter);
+        livePosition->setTimeOfStroke(_timeOfStroke);
+        livePosition->setStroke(_stroke);
+        livePosition->setDepth(_depth);
+        livePosition->setSensation(_sensation);    
+
+        if (_taskStreamingHandle == NULL) {
+            // Create Stroke Task
+            xTaskCreatePinnedToCore(
+                this->_streamingImpl,    // Function that should be called
+                "Streaming",             // Name of the task (for debugging)
+                4096,                   // Stack size (bytes)
+                this,                   // Pass reference to this class instance
+                24,                     // Pretty high task priority
+                &_taskStreamingHandle,   // Task handle
+                1                       // Pin to application core
+            ); 
+        } else {
+            // Resume task, if it already exists
+            vTaskResume(_taskStreamingHandle);
+        }
+
+#ifdef DEBUG_TALKATIVE
+        Serial.println("Started streaming task");
+        Serial.println("Stroke Engine State: " + verboseState[_state]);
+#endif
+
+        return true;
+
+    } else {
+
+#ifdef DEBUG_TALKATIVE
+        Serial.println("Failed to start streaming");
+#endif
+        return false;
+
+    }
+}
+
 void StrokeEngine::stopMotion() {
     // only valid when 
-    if (_state == PATTERN || _state == SETUPDEPTH) {
+    if (_state == PATTERN || _state == SETUPDEPTH || _state == STREAMING) {
         // Set state
         _state = READY;
 
@@ -616,7 +694,7 @@ void StrokeEngine::_homingProcedure() {
 
     // Poll homing switch
     while (servo->isRunning()) {
-
+        
         // Switch is active low
         if (digitalRead(_homeingPin) == !_homeingActiveLow) {
 
@@ -751,12 +829,64 @@ void StrokeEngine::_stroking() {
 }
 
 void StrokeEngine::_streaming() {
+    motionParameter currentMotion;
 
     while(1) { // infinite loop
 
         // Suspend task, if not in STREAMING state
         if (_state != STREAMING) {
             vTaskSuspend(_taskStreamingHandle);
+        }
+
+        // Take mutex to ensure no interference / race condition with communication threat on other core
+        if (xSemaphoreTake(_patternMutex, 0) == pdTRUE) {
+
+            if (_applyUpdate == true) {
+                // Ask pattern for update on motion parameters
+                currentMotion = livePosition->nextTarget(_index);
+            
+                // Increase deceleration if required to avoid crash
+                if (servo->getAcceleration() > currentMotion.acceleration) {
+#ifdef DEBUG_CLIPPING
+                    Serial.print("Crash avoidance! Set Acceleration from " + String(currentMotion.acceleration));
+                    Serial.println(" to " + String(servo->getAcceleration()));
+#endif
+                    currentMotion.acceleration = servo->getAcceleration();
+                }
+
+                // Apply new trapezoidal motion profile to servo
+                _applyMotionProfile(&currentMotion);
+
+                // clear update flag
+                _applyUpdate = false;
+            }
+
+            // If motor has stopped issue moveTo command to next position
+            else if (servo->isRunning() == false) {
+
+                // Increment index for pattern
+                _index++;
+
+                // Querey new set of pattern parameters
+                currentMotion = livePosition->nextTarget(_index);
+
+                // Pattern may introduce pauses between strokes
+                if (currentMotion.skip == false) {
+
+#ifdef DEBUG_STROKE
+                    Serial.println("Stroking Index: " + String(_index));
+#endif
+                    // Apply new trapezoidal motion profile to servo
+                    _applyMotionProfile(&currentMotion);
+
+                } else {
+                    // decrement _index so that it stays the same until the next valid stroke parameters are delivered
+                    _index--;
+                }
+            }
+
+            // give back mutex
+            xSemaphoreGive(_patternMutex);
         }
         
         // Delay 10ms 
