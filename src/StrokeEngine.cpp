@@ -664,6 +664,10 @@ float StrokeEngine::getMaxAcceleration() {
     return float(_maxStepAcceleration / _motor->stepsPerMillimeter);
 }
 
+float StrokeEngine::getMaxDepth() {
+    return _travel;
+}
+
 void StrokeEngine::registerTelemetryCallback(void(*callbackTelemetry)(float, float, bool)) {
     _callbackTelemetry = callbackTelemetry;
 }
