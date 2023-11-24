@@ -453,7 +453,7 @@ void StrokeEngine::enableAndHome(endstopProperties *endstop, float speed) {
     xTaskCreatePinnedToCore(
         this->_homingProcedureImpl,     // Function that should be called
         "Homing",                       // Name of the task (for debugging)
-        2048,                           // Stack size (bytes)
+        4096,                           // Stack size (bytes)
         this,                           // Pass reference to this class instance
         20,                             // Pretty high task priority
         &_taskHomingHandle,             // Task handle
@@ -685,6 +685,15 @@ void StrokeEngine::setMaxSpeed(float maxSpeed){
         patternTable[_patternIndex]->setSpeedLimit(_maxStepPerSecond, _maxStepAcceleration, _motor->stepsPerMillimeter);
         xSemaphoreGive(_patternMutex);
     }
+}
+
+void StrokeEngine::setPhysicalTravel(float travel) {
+    if (_state != UNDEFINED || _isHomed) {
+        return; // don't allow adjusting physical travel after homing has been completed
+    }
+    _physics->physicalTravel = travel;
+    _travel = (_physics->physicalTravel - (2 * _physics->keepoutBoundary));
+    _maxStep = int(0.5 + _travel * _motor->stepsPerMillimeter);
 }
 
 float StrokeEngine::getMaxSpeed() {

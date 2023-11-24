@@ -403,6 +403,14 @@ class StrokeEngine {
         
         /**************************************************************************/
         /*!
+          @brief  Updates the physical travel distance (ie. the usable rod length in mm). 
+          @param travel maximum travel in mm
+        */
+        /**************************************************************************/
+        void setPhysicalTravel(float travel);
+        
+        /**************************************************************************/
+        /*!
           @brief  Get the maximum depth based on the rod length
           @return maximum depth in mm
         */
