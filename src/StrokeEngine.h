@@ -177,6 +177,18 @@ class StrokeEngine {
           @param applyNow Set to true if changes should take effect immediately 
         */
         /**************************************************************************/
+        void appendToStreaming(unsigned int position, unsigned int time, boolean replace);
+
+        /**************************************************************************/
+        /*!
+          @brief  Set the sensation of a pattern. Sensation is an additional 
+          parameter a pattern may use to alter its behaviour. Settings takes 
+          effect with next stroke, or after calling applyNewSettingsNow().
+          @param sensation  Sensation in [a.u.]. Is constrained from -100 to 100  
+                        with 0 beeing assumed as neutral.
+          @param applyNow Set to true if changes should take effect immediately 
+        */
+        /**************************************************************************/
         void setSensation(float sensation, bool applyNow);
 
         /**************************************************************************/
@@ -218,6 +230,16 @@ class StrokeEngine {
         */
         /**************************************************************************/
         bool startPattern();
+
+        /**************************************************************************/
+        /*!
+          @brief  Creates a FreeRTOS task to run a stroking pattern. Only valid in
+          state READY. Pattern is initialized with the values from the set 
+          functions. If the task is running, state is PATTERN.
+          @return TRUE when task was created and motion starts, FALSE on failure.
+        */
+        /**************************************************************************/
+        bool startStreaming();
 
         /**************************************************************************/
         /*!
