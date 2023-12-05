@@ -793,7 +793,7 @@ void StrokeEngine::_sensorlessHomingProcedure() {
 #endif
 
         // Let other tasks run
-        vTaskDelay(0);
+        vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
     servo->forceStopAndNewPosition(0);
@@ -819,7 +819,7 @@ void StrokeEngine::_sensorlessHomingProcedure() {
         }
 #endif
         // Let other tasks run
-        vTaskDelay(0);
+        vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
     if(_abortHoming) return;
