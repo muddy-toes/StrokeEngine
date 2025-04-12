@@ -290,15 +290,28 @@ class StrokeEngine {
 
         /**************************************************************************/
         /*!
+          @param position Set position.  Will be constrained between _minStep and 
+                          _maxStep.  Default 0
+          @param speed  Speed in mm/s used for driving to position.
+                        Defaults to 10.0 mm/s
+          @param blocking Passed to FastAccelStepper.  Block until move complete.
+          @return TRUE on success, FALSE if state does not allow this (not homed).
+        */
+        /**************************************************************************/
+        bool moveTo(float position = 0.0, float speed = 10.0, bool blocking = false);
+        
+        /**************************************************************************/
+        /*!
           @brief  In state PATTERN, SETUPDEPTH and READY this 
           moves the endeffector to TRAVEL. Can be used for adjustments. Stops any 
           running pattern and ends in state READY.
           @param speed  Speed in mm/s used for driving to max. 
                         Defaults to 10.0 mm/s
+          @param blocking Passed to FastAccelStepper.  Block until move complete.
           @return TRUE on success, FALSE if state does not allow this.
         */
         /**************************************************************************/
-        bool moveToMax(float speed = 10.0);
+        bool moveToMax(float speed = 10.0, bool blocking = false);
 
         /**************************************************************************/
         /*!
@@ -307,10 +320,11 @@ class StrokeEngine {
           pattern and ends in state READY.
           @param speed  Speed in mm/s used for driving to min. 
                         Defaults to 10.0 mm/s
+          @param blocking Passed to FastAccelStepper.  Block until move complete.
           @return TRUE on success, FALSE if state does not allow this.
         */
         /**************************************************************************/
-        bool moveToMin(float speed = 10.0);
+        bool moveToMin(float speed = 10.0, bool blocking = false);
 
         /**************************************************************************/
         /*!
@@ -449,6 +463,7 @@ class StrokeEngine {
         float _sensation;
         bool _applyUpdate = false;
         bool _abortHoming = false;
+        float _catchup_multiplier = 1.0;
         static void _homingProcedureImpl(void* _this) { static_cast<StrokeEngine*>(_this)->_homingProcedure(); }
         void _homingProcedure();
         void _sensorHomingProcedure();
