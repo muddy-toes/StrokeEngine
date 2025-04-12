@@ -1,3 +1,12 @@
+
+Muddy's Notes:
+
+This fork contains the changes I've made to tweak my own XToys-OSSM-Firmware version and may not be suitable for any other purpose.
+
+Review the changes before flashing any code to your OSSM.
+
+--------------------------
+
 # Changes from Core Project
 This project is a fork from StrokeEngine 0.3 to add support for sending a stream of position commands to StrokeEngine. For use with the XToys OSSM firmware for real time position updates.
 
