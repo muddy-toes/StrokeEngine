@@ -30,6 +30,8 @@ void StrokeEngine::begin(machineGeometry *physics, motorProperties *motor) {
     _timeOfStroke = 1.0;
     _sensation = 0.0;
 
+    _catchup_multiplier = 1.0;
+
     // Setup FastAccelStepper 
     engine.init();
     servo = engine.stepperConnectToPin(_motor->stepPin);
@@ -166,11 +168,18 @@ float StrokeEngine::getStroke() {
 }
 
 void StrokeEngine::appendToStreaming(unsigned int position, unsigned int time, boolean replace) {
+    bool overflow;
     if (xSemaphoreTake(_patternMutex, portMAX_DELAY) == pdTRUE) {
         if (replace) {
             livePosition->clear();
         }
-        livePosition->addPosition(position, time);
+        overflow = livePosition->addPosition(position, time * _catchup_multiplier);
+        if( overflow ) {
+            _catchup_multiplier = 1;
+        } else {
+            // If addPosition returns false, it means we overwrote data in the buffer, so speed up a little on the next motion
+            _catchup_multiplier *= 0.95;
+        }
 
 #ifdef DEBUG_TALKATIVE
         Serial.println("appendToStreaming: " + String(position) + " " + String(time));
@@ -398,6 +407,7 @@ void StrokeEngine::stopMotion() {
         _state = READY;
 
         // Stop servo motor as fast as legally allowed
+        livePosition->clear();
         servo->setAcceleration(_maxStepAcceleration);
         servo->applySpeedAcceleration();
         servo->stopMove();
@@ -534,7 +544,8 @@ void StrokeEngine::thisIsHome(float speed) {
 
 }
 
-bool StrokeEngine::moveToMax(float speed) {
+// Speed here is in mm/s
+bool StrokeEngine::moveTo(float position, float speed, bool blocking) {
 
 #ifdef DEBUG_TALKATIVE
     Serial.println("Move to max");
@@ -548,7 +559,43 @@ bool StrokeEngine::moveToMax(float speed) {
         // Constrain speed between 1 step/sec and _maxStepPerSecond
         servo->setSpeedInHz(constrain(speed * _motor->stepsPerMillimeter, 1, _maxStepPerSecond));
         servo->setAcceleration(_maxStepAcceleration / 10);
-        servo->moveTo(_maxStep);
+        position = constrain(position, _minStep, _maxStep);
+        servo->moveTo(position, blocking);
+
+        // Send telemetry data
+        if (_callbackTelemetry != NULL) {
+            _callbackTelemetry(float(position / _motor->stepsPerMillimeter), speed, false);
+        } 
+
+#ifdef DEBUG_TALKATIVE
+        Serial.println("Stroke Engine State: " + verboseState[_state]);
+#endif
+
+        // Return success
+        return true;
+
+    } else {
+        // Return failure
+        return false;
+    }
+}
+
+
+bool StrokeEngine::moveToMax(float speed, bool blocking) {
+
+#ifdef DEBUG_TALKATIVE
+    Serial.println("Move to max");
+#endif
+
+    if (_isHomed) {
+        // Stop motion immediately
+        stopMotion();
+
+        // Set feedrate for safe move 
+        // Constrain speed between 1 step/sec and _maxStepPerSecond
+        servo->setSpeedInHz(constrain(speed * _motor->stepsPerMillimeter, 1, _maxStepPerSecond));
+        servo->setAcceleration(_maxStepAcceleration / 10);
+        servo->moveTo(_maxStep, blocking);
 
         // Send telemetry data
         if (_callbackTelemetry != NULL) {
@@ -568,7 +615,7 @@ bool StrokeEngine::moveToMax(float speed) {
     }
 }
 
-bool StrokeEngine::moveToMin(float speed) {
+bool StrokeEngine::moveToMin(float speed, bool blocking) {
 
 #ifdef DEBUG_TALKATIVE
     Serial.println("Move to min");
@@ -582,7 +629,7 @@ bool StrokeEngine::moveToMin(float speed) {
         // Constrain speed between 1 step/sec and _maxStepPerSecond
         servo->setSpeedInHz(constrain(speed * _motor->stepsPerMillimeter, 1, _maxStepPerSecond));
         servo->setAcceleration(_maxStepAcceleration / 10);
-        servo->moveTo(_minStep);
+        servo->moveTo(_minStep, blocking);
 
         // Send telemetry data
         if (_callbackTelemetry != NULL) {
