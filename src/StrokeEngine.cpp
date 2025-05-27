@@ -48,6 +48,20 @@ void StrokeEngine::begin(machineGeometry *physics, motorProperties *motor) {
 #endif
 }
 
+void StrokeEngine::minmax(int current) {
+    static float range = 0;
+
+    if (current<minsteps) {
+        minsteps = current;
+        range = (maxsteps-minsteps)/100;
+    }
+    if (current>maxsteps) {
+        maxsteps = current;
+        range = (maxsteps-minsteps)/100;
+    }
+    _depthpercent = current/range;
+}
+
 void StrokeEngine::setSpeed(float speed, bool applyNow = false) {
 
     // Update pattern with new speed, will be used with the next stroke or on update request
@@ -766,6 +780,10 @@ float StrokeEngine::getMaxDepth() {
     return _travel;
 }
 
+int StrokeEngine::getDepthPercent() {
+    return _depthpercent;
+}
+
 void StrokeEngine::registerTelemetryCallback(void(*callbackTelemetry)(float, float, bool)) {
     _callbackTelemetry = callbackTelemetry;
 }
@@ -1059,6 +1077,7 @@ void StrokeEngine::_stroking() {
             // give back mutex
             xSemaphoreGive(_patternMutex);
         }
+        minmax(servo->getCurrentPosition());
         
         // Delay 10ms 
         vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -1125,6 +1144,7 @@ void StrokeEngine::_streaming() {
             // give back mutex
             xSemaphoreGive(_patternMutex);
         }
+        minmax(servo->getCurrentPosition());
         
         // Delay 10ms 
         vTaskDelay(10 / portTICK_PERIOD_MS);
