@@ -15,10 +15,12 @@
 #include <pattern.h>
 #include <streaming.h>
 
+#define INTERVAL 50
+
 // Debug Levels
 //#define DEBUG_TALKATIVE             // Show debug messages from the StrokeEngine on Serial
 //#define DEBUG_STROKE                // Show debug messaged for each individual stroke on Serial
-#define DEBUG_CLIPPING              // Show debug messages when motions violating the machine 
+//#define DEBUG_CLIPPING              // Show debug messages when motions violating the machine 
                                     // physics are commanded
 
 /**************************************************************************/
@@ -431,6 +433,14 @@ class StrokeEngine {
         /**************************************************************************/
         float getMaxDepth();
 
+                /**************************************************************************/
+        /*!
+          @brief  Get the current position as a percentage of the maximum depth.
+          @return current position in percent
+        */
+        /**************************************************************************/
+        int getDepthPercent();
+
         /**************************************************************************/
         /*!
           @brief  Register a callback function that will update telemetry information
@@ -489,4 +499,9 @@ class StrokeEngine {
         bool _fancyAdjustment;
         void _setupDepths();
         float _getAnalogAveragePercent(int pinNumber, int samples);
+
+        int minsteps;
+        int maxsteps;
+        int _depthpercent;
+        void minmax(int current);
 };
