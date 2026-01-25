@@ -12,6 +12,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <FastAccelStepper.h>
 #include <pattern.h>
 #include <streaming.h>
 
@@ -443,15 +444,96 @@ class StrokeEngine {
 
         /**************************************************************************/
         /*!
+          @brief  Get the streaming buffer usage as a percentage (0-100)
+          @return buffer usage percentage
+        */
+        /**************************************************************************/
+        int getStreamingBufferUsage();
+
+        /**************************************************************************/
+        /*!
+          @brief  Check if the streaming buffer is nearly full (>80% capacity)
+          @return TRUE if buffer is nearly full, FALSE otherwise
+        */
+        /**************************************************************************/
+        bool isStreamingBufferNearlyFull();
+
+        /**************************************************************************/
+        /*!
           @brief  Register a callback function that will update telemetry information
-          about StrokeEngine. The provided function will be called whenever a motion 
+          about StrokeEngine. The provided function will be called whenever a motion
           is executed by a manual command or by a pattern. The returned values are the
-          target position of this move, its top speed and wether clipping occurred. 
-          @param callbackTelemetry Function must be of type: 
+          target position of this move, its top speed and wether clipping occurred.
+          @param callbackTelemetry Function must be of type:
           void callbackTelemetry(float position, float speed, bool clipping)
         */
         /**************************************************************************/
         void registerTelemetryCallback(void(*callbackTelemetry)(float, float, bool));
+
+        /**************************************************************************/
+        /*!
+          @brief  Get direct access to the FastAccelStepper servo object.
+          Used by StreamingController for direct motor control.
+          @return Pointer to the FastAccelStepper instance
+        */
+        /**************************************************************************/
+        FastAccelStepper* getServo();
+
+        /**************************************************************************/
+        /*!
+          @brief  Get the minimum step position (safety limit)
+          @return Minimum allowed step position
+        */
+        /**************************************************************************/
+        int32_t getMinStep() { return _minStep; }
+
+        /**************************************************************************/
+        /*!
+          @brief  Get the maximum step position (safety limit)
+          @return Maximum allowed step position
+        */
+        /**************************************************************************/
+        int32_t getMaxStep() { return _maxStep; }
+
+        /**************************************************************************/
+        /*!
+          @brief  Get the maximum steps per second (speed limit)
+          @return Maximum allowed steps per second
+        */
+        /**************************************************************************/
+        uint32_t getMaxStepPerSecond() { return _maxStepPerSecond; }
+
+        /**************************************************************************/
+        /*!
+          @brief  Get the maximum step acceleration (acceleration limit)
+          @return Maximum allowed acceleration in steps/s^2
+        */
+        /**************************************************************************/
+        uint32_t getMaxStepAcceleration() { return _maxStepAcceleration; }
+
+        /**************************************************************************/
+        /*!
+          @brief  Get the steps per millimeter conversion factor
+          @return Steps per millimeter
+        */
+        /**************************************************************************/
+        float getStepsPerMillimeter() { return _motor->stepsPerMillimeter; }
+
+        /**************************************************************************/
+        /*!
+          @brief  Get the current depth setting in steps
+          @return Depth in steps
+        */
+        /**************************************************************************/
+        int32_t getDepthSteps() { return _depth; }
+
+        /**************************************************************************/
+        /*!
+          @brief  Get the current stroke setting in steps
+          @return Stroke length in steps
+        */
+        /**************************************************************************/
+        int32_t getStrokeSteps() { return _stroke; }
 
     protected:
         ServoState _state = UNDEFINED;

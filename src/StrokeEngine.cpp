@@ -776,6 +776,10 @@ float StrokeEngine::getMaxAcceleration() {
     return float(_maxStepAcceleration / _motor->stepsPerMillimeter);
 }
 
+FastAccelStepper* StrokeEngine::getServo() {
+    return servo;
+}
+
 float StrokeEngine::getMaxDepth() {
     return _travel;
 }
