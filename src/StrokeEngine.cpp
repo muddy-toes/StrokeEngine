@@ -51,15 +51,15 @@ void StrokeEngine::begin(machineGeometry *physics, motorProperties *motor) {
 void StrokeEngine::minmax(int current) {
     static float range = 0;
 
-    if (current<minsteps) {
+    if (current < minsteps) {
         minsteps = current;
         range = (maxsteps-minsteps)/100;
     }
-    if (current>maxsteps) {
+    if (current > maxsteps) {
         maxsteps = current;
-        range = (maxsteps-minsteps)/100;
+        range = (maxsteps - minsteps)/100;
     }
-    _depthpercent = current/range;
+    _depthpercent = current / range;
 }
 
 void StrokeEngine::setSpeed(float speed, bool applyNow = false) {
@@ -847,7 +847,7 @@ void StrokeEngine::_sensorlessHomingProcedure() {
     while (current < _sensorlessHomeingCurrentLimit)
     {
         if(_abortHoming) return;
-        current = _getAnalogAveragePercent(_sensorlessHomeingCurrentPin, 25) - currentSensorOffset;
+        current = _getAnalogAveragePercent(_sensorlessHomeingCurrentPin, 200) - currentSensorOffset;
 #ifdef DEBUG_TALKATIVE
         if(millis() - lastMillisMessage > 200) {
             Serial.print(current);
@@ -874,7 +874,7 @@ void StrokeEngine::_sensorlessHomingProcedure() {
     while (current < _sensorlessHomeingCurrentLimit)
     {
         if(_abortHoming) return;
-        current = _getAnalogAveragePercent(_sensorlessHomeingCurrentPin, 25) - currentSensorOffset;
+        current = _getAnalogAveragePercent(_sensorlessHomeingCurrentPin, 200) - currentSensorOffset;
 #ifdef DEBUG_TALKATIVE
         if(millis() - lastMillisMessage > 200) {
             Serial.print(current);
